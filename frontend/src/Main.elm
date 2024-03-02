@@ -3,6 +3,7 @@ module Main exposing (..)
 import Animator
 import Api.Address exposing (Address)
 import Api.Weather exposing (WeatherData)
+import Api.TodoTasks
 import Browser
 import Chart as C
 import Chart.Attributes as CA
@@ -27,6 +28,7 @@ import Material.Icons.Types exposing (Coloring(..))
 import Ports
 import Screens.ThemePicker as ThemePicker
 import Screens.Welcome as Welcome
+import Task exposing (Task)
 import Time exposing (Posix, Zone)
 import TimeZone
 import Utils exposing (..)
@@ -111,16 +113,10 @@ type alias MainScreenModel =
     , customThemes : Maybe (Nonempty Theme)
     , isOnline : Bool
     , geolocationApiError : Maybe GeoLocationApiError
-
-    -- NOTE: when I fetch I return response and current time posix
-    -- they're synced as I don't need to use posix anywhere else
-    -- but when I get the data and to do things at the time I fetched it
     , apiData : ( WeatherData, Posix )
-
-    -- NOTE: could be made into a Loading | Loaded | Error type union
-    -- can't be bothered though
     , currentAddress : Maybe Address
     , countryAndStateVisibility : Animator.Timeline Bool
+    , tasks : List String
     }
 
 
@@ -154,6 +150,7 @@ type MainScreenMsg
     | Tick Time.Posix
     | GotCountryAndStateMainScreen (Result Http.Error Address)
     | ReceivedGeoLocation { latitude : Float, longitude : Float }
+    | GotFetchTasks (Result Http.Error (List String))
     | GoToThemePickerScreen
     | WentOnline
     | WentOffline
@@ -177,7 +174,6 @@ type Msg
     | OnLoadingScreenMsg LoadingScreenMsg
     | OnMainScreenMsg MainScreenMsg
     | OnThemePickerScreenMsg ThemePicker.ThemePickerMsg
-
 
 
 -- MAIN
@@ -208,9 +204,10 @@ init val =
                     , secondaryColor : Color
                     , zone : Time.Zone
                     , countryAndStateVisibility : Animator.Timeline Bool
+                    , tasks: List String
                     }
                     -> MainScreenModel
-                mainDefaults { apiData, currentAddress, customThemes, language, location, primaryColor, secondaryColor, zone, countryAndStateVisibility } =
+                mainDefaults { apiData, currentAddress, customThemes, language, location, primaryColor, secondaryColor, zone, countryAndStateVisibility, tasks } =
                     { apiData = apiData
                     , currentAddress = currentAddress
                     , customThemes = customThemes
@@ -220,7 +217,7 @@ init val =
                     , secondaryColor = secondaryColor
                     , zone = zone
                     , countryAndStateVisibility = countryAndStateVisibility
-
+                    , tasks = tasks
                     --
                     , geolocationApiError = Nothing
                     , currentRefetchingStatus = Refetching
@@ -263,6 +260,7 @@ init val =
                                 |> Dict.get timezone
                                 |> Maybe.map (\l -> l ())
                                 |> Maybe.withDefault Time.utc
+                      , tasks = []
                       }
                         |> mainDefaults
                     , if usingGeoLocation then
@@ -272,6 +270,7 @@ init val =
                         Cmd.batch
                             [ Api.Address.getAddress { latitude = latitude, longitude = longitude } GotCountryAndStateMainScreen
                             , Api.Weather.getWeather { latitude = latitude, longitude = longitude } GotRefetchingWeatherResp
+                            , Api.TodoTasks.getTodoTasks GotFetchTasks
                             ]
                     )
                         |> mapToMainScreen
@@ -307,6 +306,7 @@ init val =
                                 |> Dict.get timezone
                                 |> Maybe.map (\l -> l ())
                                 |> Maybe.withDefault Time.utc
+                      , tasks = []
                       }
                         |> mainDefaults
                     , if usingGeoLocation then
@@ -316,6 +316,7 @@ init val =
                         Cmd.batch
                             [ Api.Address.getAddress { latitude = latitude, longitude = longitude } GotCountryAndStateMainScreen
                             , Api.Weather.getWeather { latitude = latitude, longitude = longitude } GotRefetchingWeatherResp
+                            , Api.TodoTasks.getTodoTasks GotFetchTasks
                             ]
                     )
                         |> mapToMainScreen
@@ -324,7 +325,6 @@ init val =
                     WelcomeScreen (Welcome.welcomeScreenInit language) |> pure
 
         Err _ ->
-            -- NOTE: this will never happen unless the flags are screwed up
             WelcomeScreen (Welcome.welcomeScreenInit English)
                 |> pure
 
@@ -362,8 +362,7 @@ update topMsg topModel =
                    )
 
         ( OnLoadingScreenMsg msg, LoadingScreen model ) ->
-            -- NOTE: could probably be refactored into 2 states in MSG
-            -- instead of one 2 states variants in 1 MSG variant
+            -- could refactor
             case msg of
                 GotWeatherResponse result ->
                     case result of
@@ -376,6 +375,7 @@ update topMsg topModel =
                                 , customThemes = Nothing
                                 , geolocationApiError = Nothing
                                 , zone = zone
+                                , tasks = []
                                 , location =
                                     if model.isUsingGeoLocation then
                                         UsingGeoLocation model.coordinates
@@ -583,6 +583,7 @@ update topMsg topModel =
                                                     , Cmd.batch
                                                         [ Api.Address.getAddress { latitude = latFloat, longitude = lonFloat } GotCountryAndStateMainScreen
                                                         , Api.Weather.getWeather { latitude = latFloat, longitude = lonFloat } GotRefetchingWeatherResp
+                                                        , Api.TodoTasks.getTodoTasks GotFetchTasks
                                                         ]
                                                     )
                                                         |> mapToMainScreen
@@ -598,8 +599,6 @@ update topMsg topModel =
                                 |> pure
                                 |> mapToMainScreen
 
-                -- NOTE: only changing if:
-                -- location allowed and no geo api errors
                 ToggleGeoLocation ->
                     case model.location of
                         UsingGeoLocation fixedCoordinates ->
@@ -642,6 +641,21 @@ update topMsg topModel =
                         _ ->
                             model
                                 |> pure
+                                |> mapToMainScreen
+                
+                GotFetchTasks tasks ->
+                    case tasks of
+                        Ok strs ->
+                            { model
+                                | tasks = strs
+                            }
+                                |> pure
+                                |> mapToMainScreen
+
+                        Err _ ->
+                            (
+                                model |> pure
+                            )
                                 |> mapToMainScreen
 
                 -- Background refetching
@@ -689,6 +703,7 @@ update topMsg topModel =
                             Cmd.batch
                                 [ Api.Address.getAddress coords GotCountryAndStateMainScreen
                                 , Api.Weather.getWeather coords GotRefetchingWeatherResp
+                                , Api.TodoTasks.getTodoTasks GotFetchTasks
                                 ]
                     )
                         |> mapToMainScreen
@@ -700,6 +715,7 @@ update topMsg topModel =
                             , Cmd.batch
                                 [ Api.Address.getAddress coords GotCountryAndStateMainScreen
                                 , Api.Weather.getWeather coords GotRefetchingWeatherResp
+                                , Api.TodoTasks.getTodoTasks GotFetchTasks
                                 ]
                             )
                                 |> mapToMainScreen
@@ -709,6 +725,7 @@ update topMsg topModel =
                             , Cmd.batch
                                 [ Api.Address.getAddress coords GotCountryAndStateMainScreen
                                 , Api.Weather.getWeather coords GotRefetchingWeatherResp
+                                , Api.TodoTasks.getTodoTasks GotFetchTasks
                                 ]
                             )
                                 |> mapToMainScreen
@@ -758,6 +775,7 @@ update topMsg topModel =
                                 , currentAddress = a.currentAddress
                                 , countryAndStateVisibility = Animator.init True
                                 , zone = a.zone
+                                , tasks = []
 
                                 -- NOTE: immediately check
                                 , isOnline = True
@@ -768,10 +786,8 @@ update topMsg topModel =
                         else
                             ( ThemePickerScreen a, b |> Cmd.map OnThemePickerScreenMsg )
                    )
-
         _ ->
             topModel |> pure
-
 
 
 -- VIEW
@@ -1195,11 +1211,32 @@ mainScreen ({ zone } as model) =
                     ]
                 )
 
+        displayNotes : Element MainScreenMsg
+        displayNotes =
+            el 
+                [ padding 14
+                , width fill
+                ] 
+                (el
+                    [ centerX
+                    , Border.color model.secondaryColor
+                    , rounded 14
+                    , Border.solid
+                    , Border.width 3
+                    , spacing 12
+                    , paddingXY 16 8
+                    , Border.rounded 200
+                    , width fill
+                    ]
+                    (paragraph [ Font.color model.secondaryColor, Font.size 20, Font.bold ]
+                        [ text "Add a note"
+                        ]
+                    )
+                )
+            
+
         dailySummary : Element MainScreenMsg
         dailySummary =
-            -- NOTE: could be even more strict and only a custom list type with 24
-            -- list items, i.e the hours in a day, each being an Hourly,
-            -- definitely overkill.
             case hasHourlyDataOfToday of
                 Just ((Nonempty firstHourly restHourly) as todayHourlyData) ->
                     column
@@ -1268,12 +1305,10 @@ mainScreen ({ zone } as model) =
                                     val |> round |> String.fromInt
 
                                 Nothing ->
-                                    -- NOTE: it can come as null in the JSON
                                     "--"
                     in
                     column [ width fill, Font.color model.secondaryColor ]
                         [ el [ width fill, Font.center, Font.bold, paddingEach { top = 14, bottom = 12, left = 0, right = 0 } ]
-                            -- NOTE: weatherCode can come as null in the JSON
                             (text
                                 (closestHourly.weatherCode
                                     |> Maybe.map
@@ -1335,7 +1370,7 @@ mainScreen ({ zone } as model) =
                         v
             in
             el
-                [ padding 15
+                [ paddingEach { top = 40, right = 15, bottom = 15, left = 15 } 
                 , width fill
                 ]
                 (row
@@ -1356,7 +1391,6 @@ mainScreen ({ zone } as model) =
                             [ windCard
                                 (hourlyClosestToMine
                                     |> .windSpeed
-                                    -- NOTE: it can come as null in the JSON
                                     |> Maybe.map (round >> String.fromInt >> prepend "km/h")
                                     |> Maybe.withDefault "--"
                                 )
@@ -1377,10 +1411,7 @@ mainScreen ({ zone } as model) =
                             ]
 
                         Nothing ->
-                            [ -- NOTE: in theory it will never reach here
-                              -- as there will always be one item in the list
-                              -- either way it's handled as "--" in all 3 stat cards
-                              windCard "--"
+                            [ windCard "--"
                             , humidityCard "--"
                             , visibilityCard "--"
                             ]
@@ -1596,6 +1627,7 @@ mainScreen ({ zone } as model) =
             , currentDateChip
             , bigCurrentTemperature
             , dailySummary
+            , displayNotes
             , temperatureGraph
             , statCards
             , -- Weekly Forecast
@@ -1615,8 +1647,6 @@ mainScreen ({ zone } as model) =
                     , width fill
                     , scrollbarX
                     ]
-                    -- NOTE: daily could be made into an Nonempty list
-                    -- don't know if it would be worth it
                     (List.map (\( date, code, max ) -> weeklyForecastCard model.secondaryColor date max code) apiData.daily)
                 )
             ]
@@ -1709,9 +1739,6 @@ numberWithSign n =
 
 timeClosestToMine : Zone -> Posix -> Api.Weather.Hourly -> List Api.Weather.Hourly -> Api.Weather.Hourly
 timeClosestToMine zone time firstItem list =
-    -- NOTE: could be made even more bulletproof and use a
-    -- function that checks that it's a few hours before
-    -- the user time, at most, and returns a Maybe Hourly instead
     let
         year : Int
         year =

@@ -63,7 +63,7 @@ welcomeScreenUpdate msg model =
         ( lat, lon ) =
             model.manualLocation
 
-        -- NOTE: parent will intercept this and move on to the next screen
+        --  intercept this and move on to the next screen
         exitScreen : { latitude : Float, longitude : Float } -> Bool -> WelcomeScreenModel
         exitScreen val usingGeo =
             { model | receivedLocation = Just val, usingGeoLocation = usingGeo }
@@ -139,7 +139,7 @@ welcomeScreenView { manualLocationErr, manualLocation, language } =
             [ paragraph [ Font.center, Font.size 52, Font.semiBold ]
                 [ el [ Font.center ] (text (Localizations.welcomeTo language))
                 , br
-                , el [ Font.heavy ] (text "WeatherMate")
+                , el [ Font.heavy ] (text "WeatherApp")
                 ]
             , el [ paddingTop 18, centerX ]
                 (button
@@ -150,7 +150,6 @@ welcomeScreenView { manualLocationErr, manualLocation, language } =
                     , paddingXY 24 12
                     , Font.size 22
                     ]
-                    -- NOTE: no good way to show "fetching location" message
                     { label = text (Localizations.enableLocationPermission language), onPress = Just RequestLocationPerms }
                 )
             , el [ Font.bold, centerX, paddingXY 0 15 ] (text (Localizations.or language))
@@ -201,7 +200,7 @@ welcomeScreenView { manualLocationErr, manualLocation, language } =
                         ]
                         { onChange = OnChangeLatitude
                         , text = lat
-                        , placeholder = Just (Input.placeholder [] (el [ Font.color defaultSecondary, alpha 0.65 ] (text "-150.58")))
+                        , placeholder = Just (Input.placeholder [] (el [ Font.color defaultSecondary, alpha 0.65 ] (text "30")))
                         , label = Input.labelAbove [ Font.color defaultPrimary ] (text (Localizations.latitude language ++ ":"))
                         }
                     , Input.text
@@ -210,7 +209,7 @@ welcomeScreenView { manualLocationErr, manualLocation, language } =
                         ]
                         { onChange = OnChangeLongitude
                         , text = lon
-                        , placeholder = Just (Input.placeholder [] (el [ Font.color defaultSecondary, alpha 0.65 ] (text "75.88")))
+                        , placeholder = Just (Input.placeholder [] (el [ Font.color defaultSecondary, alpha 0.65 ] (text "90")))
                         , label = Input.labelAbove [ Font.color defaultPrimary ] (text (Localizations.latitude language ++ ":"))
                         }
                     ]

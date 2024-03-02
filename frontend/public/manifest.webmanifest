@@ -3,8 +3,8 @@
   "display": "standalone",
   "scope": "/",
   "start_url": "/",
-  "name": "WeatherMate",
-  "short_name": "WeatherMate",
+  "name": "WeatherApp",
+  "short_name": "WeatherApp",
   "icons": [
     {
       "src": "./assets/icon-192x192.png",

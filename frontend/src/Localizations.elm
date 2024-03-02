@@ -49,7 +49,6 @@ nowItFeels language apparentTemp actualTemp =
                     text ("Ahora hace " ++ (actual |> String.fromFloat) ++ "°")
 
         ( Nothing, Nothing ) ->
-            -- NOTE: in theory should never happen
             none
 
 

@@ -115,11 +115,6 @@ type alias WeatherData =
     }
 
 
-
--- NOTE: normalize Hourly so that they all have a value
--- and ignore the ones that have one missing?
-
-
 type alias Hourly =
     { time : Posix
     , temperature : Maybe Float
@@ -173,9 +168,6 @@ responseDataDecoder =
 timesToPosix : List String -> List Posix
 timesToPosix timesStr =
     List.map Iso8601.toTime timesStr
-        -- NOTE: Will never get here, if it does, it's the API's fault
-        -- i'm trusting that the API will always return a valid time
-        -- it's not really my problem if it doesn't either
         |> List.map (Result.withDefault (Time.millisToPosix 0))
 
 

@@ -308,7 +308,7 @@ themePickerView ({ language, currentTheme, customThemes } as model) =
                     , ( black, white )
 
                     -- Light
-                    , ( defaultPrimary, black )
+                    , ( defaultPrimary, defaultPrimary )
                     , ( rgb255 66 198 255, black )
                     , ( rgb255 255 101 212, black )
                     , ( white, black )
@@ -342,9 +342,6 @@ themePickerView ({ language, currentTheme, customThemes } as model) =
                                                 , Html.Attributes.style "all" "unset"
                                                 , Html.Attributes.style "height" "45px"
                                                 , Html.Attributes.style "width" "45px"
-
-                                                -- NOTE: purposefully not preventing
-                                                -- the color from being too dark
                                                 , Html.Attributes.value
                                                     (toRgb customFirstColor
                                                         |> (\{ blue, green, red } ->
@@ -352,9 +349,6 @@ themePickerView ({ language, currentTheme, customThemes } as model) =
                                                                     [ round (red * 255)
                                                                     , round (green * 255)
                                                                     , round (blue * 255)
-
-                                                                    -- don't know how to do alpha so i'm just omitting it here
-                                                                    -- , round (alpha * 255)
                                                                     ]
                                                                     |> (::) "#"
                                                                     |> String.concat
@@ -372,9 +366,6 @@ themePickerView ({ language, currentTheme, customThemes } as model) =
                                                 , Html.Attributes.style "all" "unset"
                                                 , Html.Attributes.style "height" "45px"
                                                 , Html.Attributes.style "width" "45px"
-
-                                                -- NOTE: purposefully not preventing
-                                                -- the color from being too dark
                                                 , Html.Attributes.value
                                                     (toRgb customSecondColor
                                                         |> (\{ blue, green, red } ->
@@ -382,9 +373,6 @@ themePickerView ({ language, currentTheme, customThemes } as model) =
                                                                     [ round (red * 255)
                                                                     , round (green * 255)
                                                                     , round (blue * 255)
-
-                                                                    -- don't know how to do alpha so i'm just omitting it here
-                                                                    -- , round (alpha * 255)
                                                                     ]
                                                                     |> (::) "#"
                                                                     |> String.concat
